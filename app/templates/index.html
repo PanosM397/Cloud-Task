@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudErgasiaThingy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+
+<body>
+    <!-- Statuses navbar with if conditionals based on  response -->
+    <ul>
+        {% if elastic_local %}
+        <li>Status: <span style="color:#77a733;">Local</span>
+            <span style="color: #862d7a;"> |</span>
+            Docker online: {% if docker_status %}<span style="color:#77a733;">Yeap</span>{% else %}<span
+                style="color:#d03344;">No</span>{% endif %}
+            <span style="color: #862d7a;"> |</span>
+            Elasticsearch: {% if elastic_status %}<span style="color:#77a733;">{{elastic_status}}</span>{% else %}<span
+                style="color:#d03344;">Offline</span>{% endif %}
+            <span style="color: #862d7a;"> |</span>
+            Kibana: {% if kibana_status %}<span style="color:#77a733;">{{kibana_status}}</span>{% else %}<span
+                style="color:#d03344;">Offline</span>{% endif %}
+        </li>
+        {% else %}
+        <li>Status: <span style="color:#d03344;">Remote</span></li>
+        {% endif %}
+    </ul>
+
+    <form action="" method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <!-- Table with form text fields -->
+        <table>
+            <tr>
+                <th>{{ form.no_results.label }}<br>
+                    {{ form.no_results(size=32) }}</th>
+                <th>{{ form.index.label }}<br>
+                    {{ form.index(size=32) }}</th>
+                <th>{{ form.destination_packets.label }}<br>
+                    {{ form.destination_packets(size=32) }}</th>
+                <th>{{ form.destination_port.label }}<br>
+                    {{ form.destination_port(size=32) }}</th>
+            </tr>
+            <tr>
+                <th>{{ form.event_duration.label }}<br>
+                    {{ form.event_duration(size=32) }}</th>
+                <th>{{ form.network_bytes.label }}<br>
+                    {{ form.network_bytes(size=32) }}</th>
+                <th>{{ form.source_port.label }}<br>
+                    {{ form.source_port(size=32) }}</th>
+                <th><span>{{ form.match_all() }} {{ form.match_all.label }}</span><br>
+                    {{ form.submit() }}</th>
+            </tr>
+        </table>
+    </form>
+    </div>
+    <div>
+        <!-- If there is a response from the API show response time and total results -->
+        {% if api_response %}
+        <ul>
+            <li2>
+                <col_text>Total results:</col_text>
+                <col_text2>{{q_size}}</col_text2> <span style="color: #862d7a;"> - </span>
+                <col_text>Elastic response time:</col_text>
+                <col_text2>{{api_response['took']}}s</col_tex2t>
+            </li2>
+        </ul>
+        <!-- Iterate over responses and display them in cards -->
+        <br>
+        {% for response in api_response['hits']['hits'] %}
+        <ul>
+            <li2><a>
+                    <col_text>Response ID: </col_text>{{ response._id }} <col_text><span style="color: #862d7a;"> |
+                        </span>Destination packets: </col_text> {{response._source.destination.packets}}<span
+                        style="color: #862d7a;"> | </span>
+                    <col_text>Destination port:</col_text> {{response._source.destination.port}}<span
+                        style="color: #862d7a;"> | </span>
+                    <col_text>Event duration:</col_text> {{response._source.event.duration}}<span
+                        style="color: #862d7a;"> | </span>
+                    <col_text>Network bytes: </col_text>{{response._source.network.bytes}}<span style="color: #862d7a;">
+                        | </span>
+                    <col_text> Source port:</col_text> {{response._source.source.port}}
+                </a></li2>
+        </ul>
+        <br>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+</body>
+
+</html>
