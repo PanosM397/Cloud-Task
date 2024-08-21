@@ -1,58 +1,78 @@
-from elasticsearch import Elasticsearch
 import json
-import status
 import ast
+from elasticsearch import Elasticsearch
+import status
 
-# Get API key information
-with open("key.json", "r") as read_file:
-    data = json.load(read_file)
 
-# Use correct ip and tls certificate if script is running locally or not
-if status.is_elastic_local():
-    ip = "localhost"
-    verify = True
-else:
-    # ip = "192.168.1.12"
-    ip = "10.0.0.237"
-    verify = False
+def load_api_key(file_path="key.json"):
+    """
+    Load API key information from a JSON file.
+    """
+    try:
+        with open(file_path, "r") as read_file:
+            return json.load(read_file)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading API key: {e}")
+        return None
 
-# Create the elastic client instance
-client = Elasticsearch(
-    f"https://{ip}:9200",
-    ca_certs="ca.crt",
-    verify_certs=verify,
-    api_key=(data["id"], data["api_key"]),
-)
+
+def initialize_elasticsearch_client(
+    api_key_data, local_ip="localhost", remote_ip="10.0.0.237", ca_cert="ca.crt"
+):
+    """
+    Initialize and return an Elasticsearch client.
+    """
+    ip = local_ip if status.is_elastic_local() else remote_ip
+    verify = status.is_elastic_local()  # Only verify SSL if running locally
+
+    return Elasticsearch(
+        f"https://{ip}:9200",
+        ca_certs=ca_cert,
+        verify_certs=verify,
+        api_key=(api_key_data["id"], api_key_data["api_key"]),
+    )
 
 
 def create_query(rulia):
-    rules = ""
-    # If checkbox match all is checked, ignore all filters and return all results from elastic
+    """
+    Create and execute a query on Elasticsearch based on the form data.
+    """
+    # Initialize rules for the query
+    rules = []
+
+    # If "match all" checkbox is not checked, build the query
     if not rulia.data["match_all"]:
-        # Create request dictionary based on form response
         for rule in rulia:
-            rule_label = str(rule.label).split('">')[1].split("<")[0]
-            # Ignore wildcard * and irrelevant form fields
-            if (
-                rule.data != "*"
-                and rule_label != "Number of results"
-                and rule_label != "Source Index"
-                and rule_label != "Show all entries"
-                and rule_label != "Search"
-                and rule_label != "CSRF Token"
-            ):
-                rules = (
-                    rules
-                    + f"{{'match': {{'{rule.description}': '{rule.data.strip()}'}}}},"
-                )
-    # Create dictionary from string using the ast command
-    myquery = ast.literal_eval(f"{{'bool': {{'filter': [{rules[:-1]}]}}}}")
-    # Make the query to elasticsearch
+            rule_label = rule.label.text
+            rule_data = rule.data.strip()
+
+            # Skip irrelevant form fields and wildcards
+            if rule_data != "*" and rule_label not in [
+                "Number of results",
+                "Source Index",
+                "Show all entries",
+                "Search",
+                "CSRF Token",
+            ]:
+                rules.append({"match": {rule.description: rule_data}})
+
+    # Convert rules list to a dictionary for the query
+    query_body = {"bool": {"filter": rules}} if rules else {"match_all": {}}
+
+    # Execute the query and handle potential errors
     try:
-        resp = client.search(
-            index=rulia.index.data, query=myquery, size=int(rulia.no_results.data)
+        response = client.search(
+            index=rulia.index.data, query=query_body, size=int(rulia.no_results.data)
         )
     except Exception as e:
         print(f"Error querying Elasticsearch: {e}")
-        resp = False
-    return resp
+        return False
+
+    return response
+
+
+# Load the API key data
+api_key_data = load_api_key()
+
+# Initialize the Elasticsearch client
+client = initialize_elasticsearch_client(api_key_data)

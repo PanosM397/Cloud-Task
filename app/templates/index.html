@@ -1,94 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudTask</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/main.css') }}"
+    />
+  </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudErgasiaThingy</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-</head>
+  <body>
+    <header>
+      <h1>Search Analytics Dashboard</h1>
+    </header>
 
-<body>
-    <!-- Statuses navbar with if conditionals based on  response -->
-    <ul>
-        {% if elastic_local %}
-        <li>Status: <span style="color:#77a733;">Local</span>
-            <span style="color: #862d7a;"> |</span>
-            Docker online: {% if docker_status %}<span style="color:#77a733;">Yeap</span>{% else %}<span
-                style="color:#d03344;">No</span>{% endif %}
-            <span style="color: #862d7a;"> |</span>
-            Elasticsearch: {% if elastic_status %}<span style="color:#77a733;">{{elastic_status}}</span>{% else %}<span
-                style="color:#d03344;">Offline</span>{% endif %}
-            <span style="color: #862d7a;"> |</span>
-            Kibana: {% if kibana_status %}<span style="color:#77a733;">{{kibana_status}}</span>{% else %}<span
-                style="color:#d03344;">Offline</span>{% endif %}
-        </li>
-        {% else %}
-        <li>Status: <span style="color:#d03344;">Remote</span></li>
-        {% endif %}
-    </ul>
+    <section class="status-bar">
+      <div class="status-item">
+        Status:
+        <span
+          class="{{ 'status-remote' if not elastic_local else 'status-local' }}"
+          >{{ 'Remote' if not elastic_local else 'Local' }}</span
+        >
+      </div>
+      <!-- <div class="status-item">
+        Docker:
+        <span class="{{ 'status-on' if docker_status else 'status-off' }}"
+          >{{ 'Online' if docker_status else 'Offline' }}</span
+        >
+      </div>
+      <div class="status-item">
+        Elasticsearch:
+        <span class="{{ 'status-on' if elastic_status else 'status-off' }}"
+          >{{ elastic_status if elastic_status else 'Offline' }}</span
+        >
+      </div>
+      <div class="status-item">
+        Kibana:
+        <span class="{{ 'status-on' if kibana_status else 'status-off' }}"
+          >{{ kibana_status if kibana_status else 'Offline' }}</span
+        >
+      </div> -->
+    </section>
 
-    <form action="" method="post" novalidate>
+    <section class="form-container">
+      <form action="" method="post" novalidate>
         {{ form.hidden_tag() }}
-        <!-- Table with form text fields -->
-        <table>
-            <tr>
-                <th>{{ form.no_results.label }}<br>
-                    {{ form.no_results(size=32) }}</th>
-                <th>{{ form.index.label }}<br>
-                    {{ form.index(size=32) }}</th>
-                <th>{{ form.destination_packets.label }}<br>
-                    {{ form.destination_packets(size=32) }}</th>
-                <th>{{ form.destination_port.label }}<br>
-                    {{ form.destination_port(size=32) }}</th>
-            </tr>
-            <tr>
-                <th>{{ form.event_duration.label }}<br>
-                    {{ form.event_duration(size=32) }}</th>
-                <th>{{ form.network_bytes.label }}<br>
-                    {{ form.network_bytes(size=32) }}</th>
-                <th>{{ form.source_port.label }}<br>
-                    {{ form.source_port(size=32) }}</th>
-                <th><span>{{ form.match_all() }} {{ form.match_all.label }}</span><br>
-                    {{ form.submit() }}</th>
-            </tr>
-        </table>
-    </form>
-    </div>
-    <div>
-        <!-- If there is a response from the API show response time and total results -->
-        {% if api_response %}
-        <ul>
-            <li2>
-                <col_text>Total results:</col_text>
-                <col_text2>{{q_size}}</col_text2> <span style="color: #862d7a;"> - </span>
-                <col_text>Elastic response time:</col_text>
-                <col_text2>{{api_response['took']}}s</col_tex2t>
-            </li2>
-        </ul>
-        <!-- Iterate over responses and display them in cards -->
-        <br>
+        <div class="form-group">
+          <label>{{ form.no_results.label }}</label>
+          {{ form.no_results(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.index.label }}</label>
+          {{ form.index(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.destination_packets.label }}</label>
+          {{ form.destination_packets(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.destination_port.label }}</label>
+          {{ form.destination_port(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.event_duration.label }}</label>
+          {{ form.event_duration(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.network_bytes.label }}</label>
+          {{ form.network_bytes(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.source_port.label }}</label>
+          {{ form.source_port(size=32) }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.match_all.label }}</label>
+          {{ form.match_all() }}
+        </div>
+        <div class="form-group">
+          <input type="submit" value="Search" aria-label="Search" />
+        </div>
+      </form>
+    </section>
+
+    <section class="results-container">
+      {% if api_response %}
+      <div class="results-info">
+        <p>
+          Total results: <strong>{{ q_size }}</strong> &nbsp; &nbsp; &nbsp;
+          Elastic response time:
+          <strong>{{ api_response['took'] }} ms</strong>
+        </p>
+      </div>
+      <div class="results-grid">
         {% for response in api_response['hits']['hits'] %}
-        <ul>
-            <li2><a>
-                    <col_text>Response ID: </col_text>{{ response._id }} <col_text><span style="color: #862d7a;"> |
-                        </span>Destination packets: </col_text> {{response._source.destination.packets}}<span
-                        style="color: #862d7a;"> | </span>
-                    <col_text>Destination port:</col_text> {{response._source.destination.port}}<span
-                        style="color: #862d7a;"> | </span>
-                    <col_text>Event duration:</col_text> {{response._source.event.duration}}<span
-                        style="color: #862d7a;"> | </span>
-                    <col_text>Network bytes: </col_text>{{response._source.network.bytes}}<span style="color: #862d7a;">
-                        | </span>
-                    <col_text> Source port:</col_text> {{response._source.source.port}}
-                </a></li2>
-        </ul>
-        <br>
+        <div class="result-card">
+          <p><strong>Response ID:</strong> {{ response._id }}</p>
+          <p>
+            <strong>Timestamp:</strong> {{ response._source['@timestamp'] }}
+          </p>
+          <p><strong>Source IP:</strong> {{ response._source.source.ip }}</p>
+          <p>
+            <strong>Destination IP:</strong> {{ response._source.destination.ip
+            }}
+          </p>
+          <p>
+            <strong>Destination packets:</strong> {{
+            response._source.destination.packets }}
+          </p>
+          <p>
+            <strong>Destination port:</strong> {{
+            response._source.destination.port }}
+          </p>
+          <p>
+            <strong>Event duration:</strong> {{ response._source.event.duration
+            }}
+          </p>
+          <p>
+            <strong>Network bytes:</strong> {{ response._source.network.bytes }}
+          </p>
+          <p>
+            <strong>Source port:</strong> {{ response._source.source.port }}
+          </p>
+        </div>
         {% endfor %}
-        {% endif %}
-    </div>
+      </div>
+      {% endif %}
+    </section>
 
-</body>
-
+    <footer>
+      <p>CloudTask © 2024</p>
+    </footer>
+  </body>
 </html>
