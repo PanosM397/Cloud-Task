@@ -44,10 +44,11 @@ services:
   elasticsearch:
     container_name: elasticsearch
     hostname: elasticsearch
-    build:
-      context: elasticsearch/
-      args:
-        ELK_VERSION: ${ELK_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.0
+#    build:
+#      context: elasticsearch/
+#      args:
+#        ELK_VERSION: ${ELK_VERSION}
     restart: unless-stopped
     environment:
       CONFIG_DIR: ${ELASTIC_DIR}/config
@@ -89,10 +90,11 @@ services:
   kibana:
     container_name: kibana
     hostname: kibana
-    build:
-      context: kibana/
-      args:
-        ELK_VERSION: $ELK_VERSION
+    image: docker.elastic.co/kibana/kibana:7.16.0
+#    build:
+#      context: kibana/
+#      args:
+#        ELK_VERSION: $ELK_VERSION
     restart: unless-stopped
     volumes:
       - ./kibana/config/kibana.yml:${KIBANA_DIR}/config/kibana.yml:ro
@@ -102,6 +104,7 @@ services:
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
       ENCRYPTION_KEY: ${XPACK_ENCRYPTION_KEY}
       KIBANA_URL: ${KIBANA_URL}
+      XPACK.INFRA.ENABLED: "false"
     secrets:
       - source: ca.crt
         target: ${KIBANA_DIR}/config/ca.crt
@@ -124,10 +127,11 @@ services:
   logstash:
     container_name: logstash
     hostname: logstash
-    build:
-      context: logstash/
-      args:
-        ELK_VERSION: $ELK_VERSION
+    image: docker.elastic.co/logstash/logstash:7.16.0
+#    build:
+#      context: logstash/
+#      args:
+#        ELK_VERSION: $ELK_VERSION
     restart: unless-stopped
     volumes:
       - ./logstash/config/logstash.yml:${LOGSTASH_DIR}/config/logstash.yml
@@ -163,15 +167,16 @@ services:
     depends_on: 
       - elasticsearch
       - kibana
-
+  
   packetbeat:
     container_name: packetbeat
     hostname: packetbeat
     user: root
-    build:
-      context: packetbeat/
-      args:
-        ELK_VERSION: $ELK_VERSION
+    image: docker.elastic.co/beats/packetbeat:7.16.0
+#    build:
+#      context: packetbeat/
+#      args:
+#        ELK_VERSION: $ELK_VERSION
     restart: unless-stopped
     cap_add: 
       - NET_ADMIN
@@ -192,6 +197,107 @@ services:
       target: ${PACKETBEAT_DIR}/config/packetbeat.crt
     - source: packetbeat.key
       target: ${PACKETBEAT_DIR}/config/packetbeat.key
+    networks:
+      - elk
+    depends_on: 
+      - logstash
+
+  metricbeat:
+    container_name: metricbeat
+    hostname: metricbeat
+    user: root
+    image: docker.elastic.co/beats/metricbeat:7.16.0
+#    build:
+#      context: metricbeat/
+#      args:
+#        ELK_VERSION: $ELK_VERSION
+    restart: unless-stopped
+    cap_add: 
+      - NET_ADMIN
+      - NET_RAW
+    command:
+      - /bin/bash
+      - -c
+      - while true; do metricbeat -e; sleep 1; done
+    volumes:
+      - ./metricbeat/config/metricbeat.yml:${METRICBEAT_DIR}/metricbeat.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      CONFIG_DIR: ${METRICBEAT_DIR}/config
+      ELASTIC_USERNAME: ${ELASTIC_USERNAME}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      LS_JAVA_OPTS: "-Xmx${METRICBEAT_HEAP} -Xms${METRICBEAT_HEAP}"
+    secrets:
+      - source: elastic-stack-ca.p12
+        target: /etc/pki/ca-trust/source/anchors/elastic-stack-ca.p12
+      - source: ca.crt
+        target: /etc/pki/ca-trust/source/anchors/ca.crt
+      - source: metricbeat.cert
+        target: ${METRICBEAT_DIR}/config/metricbeat.crt
+      - source: metricbeat.key
+        target: ${METRICBEAT_DIR}/config/metricbeat.key
+    networks:
+      - elk
+    depends_on: 
+      - logstash
+      - kibana
+
+  filebeat:
+    container_name: filebeat
+    hostname: filebeat
+    image: docker.elastic.co/beats/filebeat:7.16.0
+#    build:
+#      context: filebeat/
+#      args:
+#        ELK_VERSION: $ELK_VERSION
+    restart: unless-stopped
+    command: >
+      sh -c "filebeat -e"
+    volumes: 
+      - ./filebeat/config/filebeat.yml:${FILEBEAT_DIR}/filebeat.yml:ro
+    environment:
+      CONFIG_DIR: ${FILEBEAT_DIR}/config
+      LS_JAVA_OPTS: "-Xmx${FILEBEAT_HEAP} -Xms${FILEBEAT_HEAP}"
+      ELASTIC_USERNAME: ${ELASTIC_USERNAME}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+    secrets:
+      - source: ca.crt
+        target: ${FILEBEAT_DIR}/config/ca.crt
+      - source: filebeat.cert
+        target: ${FILEBEAT_DIR}/config/filebeat.crt
+      - source: filebeat.key
+        target: ${FILEBEAT_DIR}/config/filebeat.key
+    ports:
+      - "9000:9000" 
+    networks:
+      - elk
+    depends_on: 
+      - logstash
+
+  elastic-agent:
+    container_name: elastic-agent
+    hostname: elastic-agent
+    image: docker.elastic.co/beats/elastic-agent:7.16.0
+#    build:
+#      context: elastic-agent/
+#      args:
+#        ELK_VERSION: $ELK_VERSION
+    restart: unless-stopped
+    environment:
+      FLEET_CA: '/ca.crt'
+      ELK_VERSION: ${ELK_VERSION}
+      KIBANA_HOST: "https://kibana:5601"
+      ELASTICSEARCH_USERNAME: ${ELASTIC_USERNAME}
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD}
+      ELASTICSEARCH_HOSTS: "https://elasticsearch:9200"
+      FLEET_ENROLL_INSECURE: 1
+      ENROLL_FORCE: 1
+      PREFLIGHT_CHECK: 1
+    secrets:
+      - source: ca.crt
+        target: /ca.crt
+    ports:
+      - "2222:22" 
     networks:
       - elk
     depends_on: 
