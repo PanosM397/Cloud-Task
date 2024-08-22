@@ -403,6 +403,7 @@
   sudo nano setup.sh
   ```
 - **Αλλάξτε το αρχείο setup.sh sτην γραμμή 19**:
+  https://github.com/swimlane/elk-tls-docker/issues/27
   ```
   apt-get update && apt-get install unzip openssl -y
   ```
